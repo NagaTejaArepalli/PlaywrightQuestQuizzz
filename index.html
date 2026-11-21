@@ -1758,6 +1758,7 @@
       getFirestore,
       doc,
       setDoc,
+      deleteDoc,
       collection,
       onSnapshot
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -3025,18 +3026,24 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
             await setDoc(doc(db, 'unsubscribes', emailKey), {
               email: currentUser.email.toLowerCase(),
               uid: currentUser.uid,
+              unsubscribed: true,
               unsubscribedAt: Date.now()
             }, { merge: true });
           } catch (_) { }
         } else {
+          localStorage.removeItem('playwright_quest_unsubscribed_email');
           try {
-            await setDoc(doc(db, 'unsubscribes', emailKey), {
-              email: currentUser.email.toLowerCase(),
-              uid: currentUser.uid,
-              unsubscribed: false,
-              resubscribedAt: Date.now()
-            }, { merge: true });
-          } catch (_) { }
+            await deleteDoc(doc(db, 'unsubscribes', emailKey));
+          } catch (_) {
+            try {
+              await setDoc(doc(db, 'unsubscribes', emailKey), {
+                email: currentUser.email.toLowerCase(),
+                uid: currentUser.uid,
+                unsubscribed: false,
+                resubscribedAt: Date.now()
+              }, { merge: true });
+            } catch (_) { }
+          }
         }
       }
     }
@@ -4668,6 +4675,8 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
 
         if (currentUser) {
           await saveProfileToCloud();
+        } else if (isSubscribed) {
+          showToast('Sign in with Google to activate daily quest email briefings! 🥋', 'info');
         } else if (db && !isSubscribed) {
           const email = (localStorage.getItem('playwright_quest_unsubscribed_email') || '').trim().toLowerCase();
           if (email) {
