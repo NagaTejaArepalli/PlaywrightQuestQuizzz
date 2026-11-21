@@ -41,36 +41,49 @@ A comprehensive curriculum covering end-to-end browser automation and test archi
 ---
 
 ### 🤖 2. Dynamic AI Question Generation (Google Gemini)
-- **Built-in Sensei Script AI**: Generate endless fresh, non-repeating SDET questions on any curriculum topic.
-- **Configurable Models**: Defaults to **`gemini-3.8-flash`** for instant question generation. Users can leave the input empty for the default, or customize with any model name (e.g. `gemini-2.0-flash`, `gemini-1.5-pro`).
-- **Private & Client-Side**: Store your Google AI Studio API key securely in browser `localStorage`. Keys are never sent to external servers or logged.
+- **Sensei Script AI**: Generate endless fresh, non-repeating SDET questions on any curriculum topic.
+- **Configurable Models**: Defaults to **`gemini-3.8-flash`** for instant question generation. Leaving the input empty defaults to `gemini-3.8-flash`, while still allowing custom model overrides (e.g., `gemini-2.0-flash`, `gemini-1.5-pro`).
+- **Graceful Failure Handling**: If the AI model is unable to generate questions (e.g. quota limits, invalid key, or network issue), the app alerts you with a dedicated dialog: *"Not able to generate questions. Try this Instant Quiz!"* rather than silently launching offline questions. You can choose to proceed with pre-loaded instant questions, check API settings, or cancel.
+- **Client-Side & Private**: Your Google AI Studio API key is stored securely in browser `localStorage` and is never sent to external logging servers.
 
 ---
 
-### 📚 3. Saved Q&A Study Vault
+### 🌐 3. Clean Address Bar Navigation (No Hash Clutter)
+- **Seamless History API**: Internal routing uses clean HTML5 History API (`pushState` / `popstate`) without exposing hash fragments like `/#dojo/day-1/q-1`, `/#dojo/day-1/summary`, or `/#dojo/day-1/exit`.
+- **Clean URLs**: The address bar stays clean (`https://playwrightquestquizz.web.app/`) across all questions and curriculum sections while preserving browser Back/Forward navigation.
+
+---
+
+### 📚 4. Saved Q&A Study Vault
 - **Complete Review**: Review every completed quiz with in-depth technical explanations detailing *why* the correct choice works and *why* key distractors fail.
 - **Copy Clean Code**: One-click copy for concise TypeScript best-practice snippets.
 - **Topic Filtering & Search**: Instant custom dropdown filter for all 14 curriculum topics, fast text search for keywords (`storageState`, `fixture`, `strict mode`), and filters for *Incorrect* and *Bookmarked* questions.
 
 ---
 
-### ☁️ 4. Firebase Authentication & Real-Time Cloud Sync
+### ⚙️ 5. Responsive Scrollable Settings Modal
+- **Adaptive Viewport**: Redesigned settings modal with fixed viewport bounds (`max-h-[92vh]`), sticky header, and sticky action buttons.
+- **Scrollable Body**: An independently scrollable inner container ensures all configuration settings (API key, model selector, connection test status, and notification toggle) fit cleanly on mobile and desktop screens.
+
+---
+
+### ☁️ 6. Firebase Authentication & Real-Time Cloud Sync
 - **Google Sign-In**: Authenticate securely with Google across mobile and desktop.
 - **Cloud Firestore Mirroring**: Profile stats (XP, daily streak, completed days) and quiz results synchronize bidirectionally in real time via Firestore. Play on your laptop and pick up right where you left off on your phone!
 - **Strict Security Rules**: Hardened `firestore.rules` protect user data so each learner can only access their own records.
 
 ---
 
-### 📬 5. Automated Daily Quest Reminders (9:30 AM IST)
+### 📬 7. Automated Daily Quest Reminders (9:30 AM IST)
 - **Everyday at 9:30 AM IST (04:00 UTC)**: Registered users receive an engaging, comic-styled daily mission briefing sent directly from the Firebase project owner (`webpagestechie@gmail.com`).
 - **Hook & Daily Challenge**: Highlights essential automation topics (e.g. *Day 3: Auto-Waiting & Web-First Assertions*), poses a brain-teaser to banish `waitForTimeout`, and includes a direct comic button to enter the Dojo.
-- **One-Click Unsubscribe**: Every email includes an RFC 8058 compliant one-click unsubscribe link. When clicked, it automatically pauses daily notifications in Firestore and displays a friendly comic confirmation modal.
-- **In-App Notification Toggle**: Users can also toggle daily reminder briefings ON/OFF anytime in **⚙️ Settings**.
-- **Scheduled Delivery via GitHub Actions**: `.github/workflows/daily-reminder.yml` runs free on a daily cron schedule and supports instant manual testing via `workflow_dispatch`.
+- **One-Click Unsubscribe**: Every email includes an RFC 8058 compliant one-click unsubscribe link. When clicked, it pauses daily notifications in Firestore and displays a friendly comic confirmation modal.
+- **Instant In-App Resubscribe**: Users can toggle daily notifications back ON anytime in **⚙️ Settings**. Doing so removes their unsubscribe record from Firestore and resumes daily reminders immediately.
+- **Scheduled Delivery via GitHub Actions**: `.github/workflows/daily-reminder.yml` runs on a daily cron schedule and supports instant manual testing via `workflow_dispatch`. Includes a Firestore REST API fallback query to bypass IAM constraints reliably.
 
 ---
 
-### 🎨 5. Comic Arcade Design & Audio
+### 🎨 8. Comic Arcade Design & Audio
 - Bold 3px ink borders, cartoon drop shadows, Fredoka + Nunito typography, and cheerful sound effects.
 - 100% responsive layout tailored for mobile devices (iPhone, Samsung Galaxy, Pixel) and desktop browsers with zero text clipping.
 
@@ -83,6 +96,8 @@ A comprehensive curriculum covering end-to-end browser automation and test archi
 - **Authentication**: Firebase Auth (Google Sign-In with popup & redirect fallback)
 - **Database**: Cloud Firestore (Real-time snapshots with offline fallback)
 - **AI Engine**: Google Gemini REST API (`v1beta`)
+- **Email Dispatcher**: Node.js, Nodemailer, Firebase Admin SDK & Firestore REST API
+- **Automation / CI/CD**: GitHub Actions (`cron` & `workflow_dispatch`)
 - **Hosting**: Firebase Hosting
 
 ---
@@ -157,6 +172,9 @@ To enable live email delivery:
     match /databases/{database}/documents {
       match /users/{userId}/{allSubcollections=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /unsubscribes/{recordId} {
+        allow read, write: if true;
       }
     }
   }
