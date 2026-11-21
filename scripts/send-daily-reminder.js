@@ -144,12 +144,22 @@ async function getSubscribedUsers(auth, db) {
   // 1. Fetch unsubscribed registry from Firestore
   try {
     const unsubsSnap = await db.collection('unsubscribes').get();
-    unsubsSnap.forEach(doc => {
-      const d = doc.data();
-      if (d.email) unsubscribedEmails.add(d.email.toLowerCase().trim());
-      if (d.uid) unsubscribedUids.add(d.uid);
+    unsubsSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      const docId = docSnap.id.toLowerCase().trim();
+
+      // Only treat as unsubscribed if d.unsubscribed !== false
+      if (d.unsubscribed !== false) {
+        if (d.email) {
+          const em = d.email.toLowerCase().trim();
+          unsubscribedEmails.add(em);
+          unsubscribedEmails.add(em.replace(/[^a-zA-Z0-9]/g, '_'));
+        }
+        if (d.uid) unsubscribedUids.add(d.uid.trim());
+        unsubscribedEmails.add(docId);
+      }
     });
-    console.log(`📋 Found ${unsubscribedEmails.size} recorded unsubscribes in Firestore.`);
+    console.log(`📋 Found ${unsubscribedEmails.size} recorded unsubscribed identifiers in Firestore.`);
   } catch (err) {
     console.warn('⚠️ Note: Could not query unsubscribes collection (proceeding with user profile checks):', err.message);
   }
@@ -163,12 +173,16 @@ async function getSubscribedUsers(auth, db) {
         if (!userRecord.email) return;
 
         const email = userRecord.email.toLowerCase().trim();
-        if (unsubscribedEmails.has(email) || unsubscribedUids.has(userRecord.uid)) {
+        const emailSanitized = email.replace(/[^a-zA-Z0-9]/g, '_');
+        const uid = userRecord.uid.trim();
+
+        if (unsubscribedEmails.has(email) || unsubscribedEmails.has(emailSanitized) || unsubscribedUids.has(uid)) {
+          console.log(`🚫 Skipping unsubscribed user from Auth: ${email}`);
           return; // Skip unsubscribed
         }
 
         users.push({
-          uid: userRecord.uid,
+          uid: uid,
           email: userRecord.email,
           displayName: userRecord.displayName || userRecord.email.split('@')[0]
         });
@@ -176,7 +190,7 @@ async function getSubscribedUsers(auth, db) {
       nextPageToken = listUsersResult.pageToken;
     } while (nextPageToken);
 
-    console.log(`👥 Retrieved ${users.length} registered candidate users from Firebase Auth.`);
+    console.log(`👥 Retrieved ${users.length} active registered candidate users from Firebase Auth.`);
   } catch (err) {
     console.warn('⚠️ Could not list users via Auth API (falling back to Firestore profiles):', err.message);
 
@@ -187,7 +201,8 @@ async function getSubscribedUsers(auth, db) {
         const d = doc.data();
         const profile = d.profile || d;
         const email = (profile.email || d.email || '').toLowerCase().trim();
-        if (email && !unsubscribedEmails.has(email) && profile.emailNotifications !== false) {
+        const emailSanitized = email.replace(/[^a-zA-Z0-9]/g, '_');
+        if (email && !unsubscribedEmails.has(email) && !unsubscribedEmails.has(emailSanitized) && profile.emailNotifications !== false) {
           users.push({
             uid: doc.id,
             email: email,
@@ -200,24 +215,83 @@ async function getSubscribedUsers(auth, db) {
     }
   }
 
-  // 3. Check individual profile email notification preference if doc exists
+  // 3. Double-check individual profile documents in Firestore
   const activeUsers = [];
   for (const u of users) {
+    const emailNorm = (u.email || '').toLowerCase().trim();
+    const emailSanitized = emailNorm.replace(/[^a-zA-Z0-9]/g, '_');
+
+    if (unsubscribedEmails.has(emailNorm) || unsubscribedEmails.has(emailSanitized) || unsubscribedUids.has(u.uid)) {
+      console.log(`🚫 Skipping unsubscribed user: ${u.email} (found in unsubscribes registry)`);
+      continue;
+    }
+
+    // Direct check in unsubscribes collection for document with emailSanitized ID
+    let isDirectlyUnsubscribed = false;
+    try {
+      const docRef1 = await db.collection('unsubscribes').doc(emailSanitized).get();
+      if (docRef1.exists && docRef1.data().unsubscribed !== false) {
+        isDirectlyUnsubscribed = true;
+      }
+    } catch (_) {}
+
+    if (!isDirectlyUnsubscribed && u.uid) {
+      try {
+        const docRef2 = await db.collection('unsubscribes').doc(u.uid).get();
+        if (docRef2.exists && docRef2.data().unsubscribed !== false) {
+          isDirectlyUnsubscribed = true;
+        }
+      } catch (_) {}
+    }
+
+    if (isDirectlyUnsubscribed) {
+      console.log(`🚫 Skipping user: ${u.email} (found direct unsubscribes document)`);
+      continue;
+    }
+
+    // Check users/{uid}/profile/stats
+    let isOptedOutInProfile = false;
     try {
       const profileSnap = await db.collection('users').doc(u.uid).collection('profile').doc('stats').get();
       if (profileSnap.exists) {
         const stats = profileSnap.data();
         if (stats.emailNotifications === false) {
-          unsubscribedEmails.add(u.email.toLowerCase());
-          continue; // User opted out in profile
+          isOptedOutInProfile = true;
         }
       }
     } catch (_) { }
+
+    if (!isOptedOutInProfile) {
+      try {
+        const altProfileSnap = await db.collection('artifacts').doc('playwright-quest').collection('users').doc(u.uid).collection('profile').doc('stats').get();
+        if (altProfileSnap.exists && altProfileSnap.data().emailNotifications === false) {
+          isOptedOutInProfile = true;
+        }
+      } catch (_) { }
+    }
+
+    if (!isOptedOutInProfile) {
+      try {
+        const rootUserDoc = await db.collection('users').doc(u.uid).get();
+        if (rootUserDoc.exists && rootUserDoc.data().emailNotifications === false) {
+          isOptedOutInProfile = true;
+        }
+      } catch (_) { }
+    }
+
+    if (isOptedOutInProfile) {
+      console.log(`🚫 Skipping user: ${u.email} (disabled emails in profile)`);
+      continue;
+    }
 
     activeUsers.push(u);
   }
 
   if (activeUsers.length === 0 && IS_DRY_RUN) {
+    if (unsubscribedEmails.has('nagateja2704@gmail.com') || unsubscribedEmails.has('nagateja2704_gmail_com')) {
+      console.log('ℹ️ Dry-run test: nagateja2704@gmail.com is recorded as UNSUBSCRIBED. Zero candidates remaining.');
+      return [];
+    }
     console.log('ℹ️ Dry-run preview: Simulating candidate user nagateja2704@gmail.com for email output validation.');
     return [
       {

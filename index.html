@@ -2669,6 +2669,10 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
     }
 
     function loadLocalUserData() {
+      const storedEmailPref = localStorage.getItem('playwright_quest_email_notifications');
+      if (storedEmailPref === 'false') {
+        state.profile.emailNotifications = false;
+      }
       if (!currentUser) return;
       try {
         const rawProfile = localStorage.getItem(getStorageKey('profile'));
@@ -2680,7 +2684,10 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
             lastQuizDate: parsed.lastQuizDate || null,
             completedDays: Array.isArray(parsed.completedDays) ? parsed.completedDays : [],
             totalAnswered: parsed.totalAnswered || 0,
-            totalCorrect: parsed.totalCorrect || 0
+            totalCorrect: parsed.totalCorrect || 0,
+            emailNotifications: parsed.emailNotifications !== undefined
+              ? parsed.emailNotifications
+              : (storedEmailPref !== 'false')
           };
         }
         let loadedList = [];
@@ -2707,8 +2714,9 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
     }
 
     function saveLocalUserData() {
-      if (!currentUser) return;
       try {
+        localStorage.setItem('playwright_quest_email_notifications', state.profile.emailNotifications === false ? 'false' : 'true');
+        if (!currentUser) return;
         localStorage.setItem(getStorageKey('profile'), JSON.stringify(state.profile));
         localStorage.setItem(getStorageKey('quizzes'), JSON.stringify(state.savedQuizzes));
       } catch (e) {
@@ -2771,7 +2779,14 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
         // Try initializing Firestore if available
         try {
           db = getFirestore(app);
-          checkUnsubscribeQuery();
+          if (pendingUnsubscribe) {
+            applyUnsubscribe(pendingUnsubscribe.email, pendingUnsubscribe.uid);
+          } else if (localStorage.getItem('playwright_quest_email_notifications') === 'false') {
+            const savedEmail = localStorage.getItem('playwright_quest_unsubscribed_email');
+            if (savedEmail) {
+              applyUnsubscribe(savedEmail, '');
+            }
+          }
         } catch (e) {
           console.warn('Firestore initialization deferred:', e);
         }
@@ -2830,7 +2845,8 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
           lastQuizDate: null,
           completedDays: [],
           totalAnswered: 0,
-          totalCorrect: 0
+          totalCorrect: 0,
+          emailNotifications: localStorage.getItem('playwright_quest_email_notifications') !== 'false'
         };
         state.activeQuiz = null;
 
@@ -3025,46 +3041,68 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
       }
     }
 
-    async function checkUnsubscribeQuery() {
+    let pendingUnsubscribe = null;
+
+    async function applyUnsubscribe(email, uid) {
+      const targetEmail = (email || localStorage.getItem('playwright_quest_unsubscribed_email') || currentUser?.email || '').trim().toLowerCase();
+      const targetUid = uid || currentUser?.uid || '';
+
+      // Update state and UI immediately
+      state.profile.emailNotifications = false;
+      localStorage.setItem('playwright_quest_email_notifications', 'false');
+      if (targetEmail) {
+        localStorage.setItem('playwright_quest_unsubscribed_email', targetEmail);
+      }
+      saveLocalUserData();
+      updateSettingsUI();
+
+      // Show modal
+      const modal = document.getElementById('unsubscribe-modal');
+      const desc = document.getElementById('unsubscribe-modal-desc');
+      if (desc && targetEmail) {
+        desc.innerHTML = `<strong>${targetEmail}</strong> has been unsubscribed from daily 9:30 AM IST Playwright Quest reminders.`;
+      }
+      if (modal) modal.classList.remove('hidden');
+
+      // Write to Firestore whenever db is available
+      if (db && (targetEmail || targetUid)) {
+        const emailKey = targetEmail ? targetEmail.replace(/[^a-zA-Z0-9]/g, '_') : targetUid;
+        try {
+          await setDoc(doc(db, 'unsubscribes', emailKey), {
+            email: targetEmail,
+            uid: targetUid,
+            unsubscribed: true,
+            unsubscribedAt: Date.now()
+          }, { merge: true });
+          console.log('✅ Unsubscribe record successfully saved to Firestore:', emailKey);
+
+          // Clean URL only after Firestore write succeeded
+          try {
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+          } catch (_) { }
+        } catch (err) {
+          console.error('Firestore unsubscribe write error:', err);
+        }
+      }
+
+      if (currentUser && db) {
+        saveProfileToCloud();
+      }
+    }
+
+    function checkUnsubscribeQuery() {
       try {
         const params = new URLSearchParams(window.location.search);
         if (params.get('action') === 'unsubscribe') {
           const rawEmail = (params.get('email') || '').trim();
           const email = rawEmail.toLowerCase();
           const uid = (params.get('uid') || '').trim();
-
-          const modal = document.getElementById('unsubscribe-modal');
-          const desc = document.getElementById('unsubscribe-modal-desc');
-          if (desc && email) {
-            desc.innerHTML = `<strong>${email}</strong> has been unsubscribed from daily 9:30 AM IST Playwright Quest reminders.`;
-          }
-          if (modal) modal.classList.remove('hidden');
-
+          pendingUnsubscribe = { email, uid };
+          applyUnsubscribe(email, uid);
+        } else if (localStorage.getItem('playwright_quest_email_notifications') === 'false') {
           state.profile.emailNotifications = false;
-          saveLocalUserData();
           updateSettingsUI();
-
-          if (db) {
-            const emailKey = email ? email.replace(/[^a-zA-Z0-9]/g, '_') : (uid || 'unknown');
-            try {
-              await setDoc(doc(db, 'unsubscribes', emailKey), {
-                email: email || '',
-                uid: uid || '',
-                unsubscribedAt: Date.now()
-              }, { merge: true });
-            } catch (err) {
-              console.warn('Firestore unsubscribe write notice:', err);
-            }
-          }
-
-          if (currentUser) {
-            saveProfileToCloud();
-          }
-
-          try {
-            const cleanUrl = window.location.pathname + window.location.hash;
-            window.history.replaceState({}, document.title, cleanUrl);
-          } catch (_) { }
         }
       } catch (err) {
         console.warn('Unsubscribe check error:', err);
@@ -4622,14 +4660,22 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
       document.getElementById('settings-modal')?.addEventListener('click', (e) => {
         if (e.target.id === 'settings-modal') closeSettingsModal();
       });
-      document.getElementById('settings-email-toggle')?.addEventListener('change', (e) => {
-        state.profile.emailNotifications = !!e.target.checked;
+      document.getElementById('settings-email-toggle')?.addEventListener('change', async (e) => {
+        const isSubscribed = !!e.target.checked;
+        state.profile.emailNotifications = isSubscribed;
+        localStorage.setItem('playwright_quest_email_notifications', isSubscribed ? 'true' : 'false');
         saveLocalUserData();
+
         if (currentUser) {
-          saveProfileToCloud();
+          await saveProfileToCloud();
+        } else if (db && !isSubscribed) {
+          const email = (localStorage.getItem('playwright_quest_unsubscribed_email') || '').trim().toLowerCase();
+          if (email) {
+            applyUnsubscribe(email, '');
+          }
         }
         playSound('pop');
-        showToast(e.target.checked ? 'Daily 9:30 AM reminders enabled 📬' : 'Daily reminders paused 🔕', 'info');
+        showToast(isSubscribed ? 'Daily 9:30 AM reminders enabled 📬' : 'Daily reminders paused 🔕', 'info');
       });
       document.getElementById('btn-close-unsubscribe')?.addEventListener('click', () => {
         document.getElementById('unsubscribe-modal')?.classList.add('hidden');

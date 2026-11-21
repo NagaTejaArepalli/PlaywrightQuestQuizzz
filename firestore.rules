@@ -29,10 +29,9 @@ service cloud.firestore {
       }
     }
 
-    // Unsubscribe records (write-only for client opt-outs, read by Admin SDK)
+    // Unsubscribe records (read and write allowed for client opt-outs & verification)
     match /unsubscribes/{recordId} {
-      allow create, update: if true;
-      allow read: if false;
+      allow read, write: if true;
     }
   }
 }
