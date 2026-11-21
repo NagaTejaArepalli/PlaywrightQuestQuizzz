@@ -2250,30 +2250,22 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
       pendingBackFallbackTimer: null
     };
 
-    function safeHistoryPush(data, hash) {
+    function safeHistoryPush(data, url = window.location.pathname) {
       try {
-        window.history.pushState(data, '', hash);
+        window.history.pushState(data, '', url || window.location.pathname);
       } catch (e) {
-        try { window.location.hash = hash; } catch (_) { }
       }
     }
 
-    function safeHistoryReplace(data, hash) {
+    function safeHistoryReplace(data, url = window.location.pathname) {
       try {
-        window.history.replaceState(data, '', hash);
+        window.history.replaceState(data, '', url || window.location.pathname);
       } catch (e) {
-        try { window.location.hash = hash; } catch (_) { }
       }
     }
 
     function buildRouteHash(entry) {
-      if (entry.tab === 'home') return '#home';
-      if (entry.tab === 'map') return '#roadmap';
-      if (entry.tab === 'vault') return '#vault';
-      if (entry.modal === 'exit') return `#dojo/day-${entry.day}/exit`;
-      if (entry.subView === 'quiz') return `#dojo/day-${entry.day}/q-${(entry.qIndex || 0) + 1}`;
-      if (entry.subView === 'summary') return `#dojo/day-${entry.day}/summary`;
-      return `#dojo/day-${entry.day}`;
+      return window.location.pathname;
     }
 
     function getRouteKey(entry) {
@@ -2314,8 +2306,6 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
         modal: partial.modal !== undefined ? partial.modal : null
       };
 
-      const hash = buildRouteHash(entry);
-
       if (!replace && navManager.stack.length > 0 && getRouteKey(currentTop) === getRouteKey(entry)) {
         updateBackButtonVisibility();
         return;
@@ -2330,15 +2320,22 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
       entry.stackDepth = navManager.stack.length;
 
       if (replace) {
-        safeHistoryReplace(entry, hash);
+        safeHistoryReplace(entry, window.location.pathname);
       } else {
-        safeHistoryPush(entry, hash);
+        safeHistoryPush(entry, window.location.pathname);
       }
 
       updateBackButtonVisibility();
     }
 
     function initNavigation(initialDay = 1) {
+      // Strip any leftover hash so the address bar stays completely clean
+      if (window.location.hash) {
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        } catch (_) { }
+      }
+
       const rootEntry = {
         isGuard: false,
         tab: 'home',
@@ -2352,8 +2349,8 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
       navManager.stack = [rootEntry];
 
       // Guard entry prevents the very first Back press from jumping to Chrome's home page
-      safeHistoryReplace({ isGuard: true, tab: 'home', subView: 'launcher', day: initialDay, qIndex: 0, modal: null }, '#home');
-      safeHistoryPush(rootEntry, buildRouteHash(rootEntry));
+      safeHistoryReplace({ isGuard: true, tab: 'home', subView: 'launcher', day: initialDay, qIndex: 0, modal: null }, window.location.pathname);
+      safeHistoryPush(rootEntry, window.location.pathname);
 
       updateBackButtonVisibility();
     }
@@ -2443,7 +2440,7 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
           const homeEntry = { isGuard: false, tab: 'daily', subView: 'launcher', day: state.selectedDay, qIndex: 0, modal: null, stackDepth: 1 };
           navManager.stack = [homeEntry];
           applyNavState(homeEntry);
-          safeHistoryPush(homeEntry, buildRouteHash(homeEntry));
+          safeHistoryPush(homeEntry, window.location.pathname);
           return;
         }
 
@@ -2451,7 +2448,7 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
           navManager.lastGuardToastAt = now;
           const anchorEntry = { isGuard: false, tab: 'daily', subView: 'launcher', day: state.selectedDay, qIndex: 0, modal: null, stackDepth: 1 };
           navManager.stack = [anchorEntry];
-          safeHistoryPush(anchorEntry, buildRouteHash(anchorEntry));
+          safeHistoryPush(anchorEntry, window.location.pathname);
           showToast('🎭 Tap Back again to exit Dojo', 'info');
           updateBackButtonVisibility();
         }
@@ -3122,7 +3119,7 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
 
           // Clean URL only after Firestore write succeeded
           try {
-            const cleanUrl = window.location.pathname + window.location.hash;
+            const cleanUrl = window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
           } catch (_) { }
         } catch (err) {
@@ -4960,6 +4957,11 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
           applyNavState({ tab: 'map', subView: 'launcher', day: state.selectedDay, qIndex: 0, modal: null });
         } else if (hash === '#vault' && state.activeTab !== 'vault') {
           applyNavState({ tab: 'vault', subView: 'launcher', day: state.selectedDay, qIndex: 0, modal: null });
+        }
+        if (hash) {
+          try {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (_) { }
         }
       });
     }
