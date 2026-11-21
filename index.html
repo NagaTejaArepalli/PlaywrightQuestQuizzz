@@ -1603,9 +1603,10 @@
 
   <!-- Settings Modal (Gemini API Key & Model Configuration) -->
   <div id="settings-modal"
-    class="hidden fixed inset-0 z-50 bg-[#1E1B4B]/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="comic-card p-5 sm:p-7 max-w-md w-full space-y-4 animate-pop bg-white">
-      <div class="flex items-center justify-between pb-3 border-b-2 border-dashed border-[#1E1B4B]/20">
+    class="hidden fixed inset-0 z-50 bg-[#1E1B4B]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="comic-card max-w-md w-full max-h-[92vh] flex flex-col bg-white animate-pop my-auto overflow-hidden shadow-[6px_6px_0_#1E1B4B]">
+      <!-- Modal Header (Pinned at Top) -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b-2 border-dashed border-[#1E1B4B]/20 shrink-0 bg-[#FFFDF7]">
         <div class="flex items-center gap-2.5">
           <span
             class="w-10 h-10 rounded-xl bg-[#FFD93D] border-2 border-[#1E1B4B] flex items-center justify-center text-xl shadow-[2px_2px_0_#1E1B4B]">⚙️</span>
@@ -1618,88 +1619,91 @@
           class="comic-btn w-9 h-9 bg-white text-[#1E1B4B] flex items-center justify-center font-bold text-base min-h-[36px]">✕</button>
       </div>
 
-      <!-- Secure Storage Info Box -->
-      <div
-        class="p-3 bg-[#E6FCF5] rounded-xl border-2 border-[#1E1B4B] flex items-start gap-2.5 text-xs font-bold text-[#1E1B4B]">
-        <span class="text-lg shrink-0">🔒</span>
-        <span>
-          <strong>100% Client-Side &amp; Private:</strong> Your API key is safely stored only in your browser's local
-          storage and used directly to generate AI questions. It is never logged or sent to any server.
-        </span>
-      </div>
-
-      <!-- Current Key Status Badge -->
-      <div class="flex items-center justify-between px-1">
-        <span class="text-xs font-extrabold uppercase text-[#1E1B4B]/70">API Key Status</span>
-        <span id="settings-key-status"
-          class="px-2.5 py-0.5 rounded-full text-xs font-extrabold border-2 border-[#1E1B4B] bg-[#FFF9DB] text-[#1E1B4B]">
-          ⚪ No Key Set
-        </span>
-      </div>
-
-      <!-- API Key Input Field -->
-      <div class="space-y-1.5">
-        <label for="settings-api-key-input" class="block text-xs font-extrabold uppercase text-[#1E1B4B]/80">
-          Google Gemini API Key
-        </label>
-        <div class="relative">
-          <input id="settings-api-key-input" type="password" placeholder="AIzaSy..."
-            class="w-full px-3.5 py-2.5 pr-11 rounded-xl border-2 border-[#1E1B4B] font-mono text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38E4FF]" />
-          <button id="btn-toggle-key-visibility" type="button" title="Show / Hide Key"
-            class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[#F3F0FF] border border-[#1E1B4B] text-[#1E1B4B]">
-            👁️
-          </button>
-        </div>
-        <p class="text-[11px] font-semibold text-[#1E1B4B]/70">
-          Need a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
-            class="text-[#845EC2] underline font-bold">Get a free key from Google AI Studio ↗</a>
-        </p>
-      </div>
-
-        <!-- Model Name Input Field (Defaults to gemini-3.8-flash if empty) -->
-      <div class="space-y-1.5">
-        <div class="flex items-center justify-between">
-          <label for="settings-model-input" class="block text-xs font-extrabold uppercase text-[#1E1B4B]/80">
-            Gemini Model Name (Optional)
-          </label>
-          <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#E6FCF5] text-[#00897B] border border-[#1E1B4B]">
-            Default: gemini-3.8-flash
+      <!-- Modal Body (Scrollable with custom comic scrollbar) -->
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+        <!-- Secure Storage Info Box -->
+        <div
+          class="p-3 bg-[#E6FCF5] rounded-xl border-2 border-[#1E1B4B] flex items-start gap-2.5 text-xs font-bold text-[#1E1B4B]">
+          <span class="text-lg shrink-0">🔒</span>
+          <span>
+            <strong>100% Client-Side &amp; Private:</strong> Your API key is safely stored only in your browser's local
+            storage and used directly to generate AI questions. It is never logged or sent to any server.
           </span>
         </div>
-        <div class="relative">
-          <input id="settings-model-input" type="text" placeholder="Leave empty for default (gemini-3.8-flash)"
-            class="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#1E1B4B] font-mono text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38E4FF]" />
-        </div>
-        <p class="text-[11px] font-semibold text-[#1E1B4B]/70">
-          Leave empty to use default <strong>gemini-3.8-flash</strong>. Only type here if you wish to override with a custom model.
-        </p>
-      </div>
 
-      <!-- Daily Quest Email Reminders Toggle -->
-      <div class="p-3 bg-[#F8F9FA] rounded-xl border-2 border-[#1E1B4B] space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-lg">📬</span>
-            <div>
-              <span class="text-xs font-extrabold text-[#1E1B4B]">Daily Quest Email Reminder</span>
-              <p class="text-[10px] font-semibold text-[#1E1B4B]/70">Everyday at 9:30 AM IST</p>
-            </div>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input id="settings-email-toggle" type="checkbox" checked class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6BCB77] border border-[#1E1B4B]"></div>
+        <!-- Current Key Status Badge -->
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-extrabold uppercase text-[#1E1B4B]/70">API Key Status</span>
+          <span id="settings-key-status"
+            class="px-2.5 py-0.5 rounded-full text-xs font-extrabold border-2 border-[#1E1B4B] bg-[#FFF9DB] text-[#1E1B4B]">
+            ⚪ No Key Set
+          </span>
+        </div>
+
+        <!-- API Key Input Field -->
+        <div class="space-y-1.5">
+          <label for="settings-api-key-input" class="block text-xs font-extrabold uppercase text-[#1E1B4B]/80">
+            Google Gemini API Key
           </label>
+          <div class="relative">
+            <input id="settings-api-key-input" type="password" placeholder="AIzaSy..."
+              class="w-full px-3.5 py-2.5 pr-11 rounded-xl border-2 border-[#1E1B4B] font-mono text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38E4FF]" />
+            <button id="btn-toggle-key-visibility" type="button" title="Show / Hide Key"
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[#F3F0FF] border border-[#1E1B4B] text-[#1E1B4B]">
+              👁️
+            </button>
+          </div>
+          <p class="text-[11px] font-semibold text-[#1E1B4B]/70">
+            Need a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+              class="text-[#845EC2] underline font-bold">Get a free key from Google AI Studio ↗</a>
+          </p>
         </div>
-        <p class="text-[10px] font-semibold text-[#1E1B4B]/60 leading-tight">
-          Receive a daily mission briefing &amp; streak alert from Sensei Script. You can unsubscribe anytime.
-        </p>
+
+        <!-- Model Name Input Field (Defaults to gemini-3.8-flash if empty) -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="settings-model-input" class="block text-xs font-extrabold uppercase text-[#1E1B4B]/80">
+              Gemini Model Name (Optional)
+            </label>
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#E6FCF5] text-[#00897B] border border-[#1E1B4B]">
+              Default: gemini-3.8-flash
+            </span>
+          </div>
+          <div class="relative">
+            <input id="settings-model-input" type="text" placeholder="Leave empty for default (gemini-3.8-flash)"
+              class="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#1E1B4B] font-mono text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38E4FF]" />
+          </div>
+          <p class="text-[11px] font-semibold text-[#1E1B4B]/70">
+            Leave empty to use default <strong>gemini-3.8-flash</strong>. Only type here if you wish to override with a custom model.
+          </p>
+        </div>
+
+        <!-- Daily Quest Email Reminders Toggle -->
+        <div class="p-3 bg-[#F8F9FA] rounded-xl border-2 border-[#1E1B4B] space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">📬</span>
+              <div>
+                <span class="text-xs font-extrabold text-[#1E1B4B]">Daily Quest Email Reminder</span>
+                <p class="text-[10px] font-semibold text-[#1E1B4B]/70">Everyday at 9:30 AM IST</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="settings-email-toggle" type="checkbox" checked class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6BCB77] border border-[#1E1B4B]"></div>
+            </label>
+          </div>
+          <p class="text-[10px] font-semibold text-[#1E1B4B]/60 leading-tight">
+            Receive a daily mission briefing &amp; streak alert from Sensei Script. You can unsubscribe anytime.
+          </p>
+        </div>
+
+        <!-- Test Status Box (revealed on test) -->
+        <div id="settings-test-status" class="hidden p-3 rounded-xl border-2 border-[#1E1B4B] text-xs font-bold"></div>
       </div>
 
-      <!-- Test Status Box (revealed on test) -->
-      <div id="settings-test-status" class="hidden p-3 rounded-xl border-2 border-[#1E1B4B] text-xs font-bold"></div>
-
-      <!-- Action Buttons -->
-      <div class="flex flex-wrap gap-2 pt-2">
+      <!-- Action Buttons (Pinned at Bottom) -->
+      <div class="p-4 sm:p-5 border-t-2 border-dashed border-[#1E1B4B]/20 shrink-0 bg-[#FFFDF7] flex flex-wrap gap-2">
         <button id="btn-save-settings" type="button"
           class="comic-btn flex-1 py-3 bg-[#6BCB77] text-[#1E1B4B] text-sm font-bold flex items-center justify-center gap-1.5 min-h-[46px]">
           <span>💾</span>
