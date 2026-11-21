@@ -1745,6 +1745,39 @@
     </div>
   </div>
 
+  <!-- AI Generation Failed Prompt Modal -->
+  <div id="modal-ai-fail"
+    class="hidden fixed inset-0 z-50 bg-[#1E1B4B]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="comic-card max-w-sm w-full p-6 text-center space-y-4 animate-pop bg-white shadow-[6px_6px_0_#1E1B4B]">
+      <div class="w-16 h-16 rounded-2xl bg-[#FFE3E3] border-3 border-[#1E1B4B] flex items-center justify-center text-3xl mx-auto shadow-[3px_3px_0_#1E1B4B]">
+        🤖
+      </div>
+      <div>
+        <h3 class="text-xl font-bold text-[#1E1B4B]">Not Able to Generate Questions</h3>
+        <p id="ai-fail-message" class="text-xs font-semibold text-[#1E1B4B]/80 mt-1.5 leading-relaxed">
+          The AI model was unable to generate custom questions right now. Try this Instant Quiz instead!
+        </p>
+      </div>
+
+      <div class="space-y-2.5 pt-1">
+        <button id="btn-fallback-instant-quiz" type="button"
+          class="comic-btn w-full py-3 bg-[#6BCB77] text-[#1E1B4B] font-bold text-sm flex items-center justify-center gap-2 min-h-[46px]">
+          <span>⚡</span>
+          <span>Try This Instant Quiz</span>
+        </button>
+        <button id="btn-fallback-settings" type="button"
+          class="comic-btn w-full py-2.5 bg-[#FFD93D] text-[#1E1B4B] font-bold text-xs flex items-center justify-center gap-1.5 min-h-[40px]">
+          <span>⚙️</span>
+          <span>Check AI Settings / Model</span>
+        </button>
+        <button id="btn-fallback-cancel" type="button"
+          class="comic-btn w-full py-2 bg-white text-[#1E1B4B]/70 font-bold text-xs min-h-[36px]">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============================================================
        APPLICATION LOGIC + FIREBASE + GEMINI API
        Zero inline onclick handlers: 100% addEventListener & delegation
@@ -3910,13 +3943,27 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
         try {
           questions = await generateQuestionsWithGemini(dayObj, count);
           clearInterval(phraseTimer);
+          document.getElementById('daily-loading').classList.add('hidden');
         } catch (err) {
           clearInterval(phraseTimer);
+          document.getElementById('daily-loading').classList.add('hidden');
           console.error('Gemini quiz generation failed:', err);
-          showToast(`Gemini: ${err.message || 'Failed to generate'}. Loaded Instant Quiz for ${dayObj.shortTitle}.`, 'warning');
-          questions = buildFallbackQuestions(count, dayObj);
+
+          // DO NOT start the quiz automatically with local fallback questions!
+          // Return to the launcher and show the interactive choice prompt
+          document.getElementById('daily-launcher').classList.remove('hidden');
+
+          const modal = document.getElementById('modal-ai-fail');
+          const msg = document.getElementById('ai-fail-message');
+          const activeModel = getGeminiModel() || DEFAULT_GEMINI_MODEL;
+          if (msg) {
+            msg.innerHTML = `Not able to generate AI questions with <strong>${escapeHtml(activeModel)}</strong>.<br><br><strong>Not able to generate questions. Try this Instant Quiz!</strong>`;
+          }
+          if (modal) modal.classList.remove('hidden');
+
+          showToast('Not able to generate questions. Try this Instant Quiz!', 'warning');
+          return;
         }
-        document.getElementById('daily-loading').classList.add('hidden');
       } else {
         if (dayObj.day !== 1) {
           showToast(`Loaded Instant Quiz (${count} Core Questions) for ${dayObj.shortTitle}.`, 'info');
@@ -4754,6 +4801,26 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
       // Launcher Action Buttons
       document.getElementById('btn-generate-ai').addEventListener('click', () => startQuiz(true));
       document.getElementById('btn-quick-start').addEventListener('click', () => startQuiz(false));
+
+      // AI Failure Modal Prompt Buttons
+      document.getElementById('btn-fallback-instant-quiz')?.addEventListener('click', () => {
+        document.getElementById('modal-ai-fail')?.classList.add('hidden');
+        playSound('pop');
+        startQuiz(false);
+      });
+      document.getElementById('btn-fallback-settings')?.addEventListener('click', () => {
+        document.getElementById('modal-ai-fail')?.classList.add('hidden');
+        openSettingsModal();
+      });
+      document.getElementById('btn-fallback-cancel')?.addEventListener('click', () => {
+        document.getElementById('modal-ai-fail')?.classList.add('hidden');
+        playSound('pop');
+      });
+      document.getElementById('modal-ai-fail')?.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-ai-fail') {
+          document.getElementById('modal-ai-fail')?.classList.add('hidden');
+        }
+      });
 
       // Active Quiz Controls
       document.getElementById('btn-exit-quiz').addEventListener('click', confirmExitQuiz);
