@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Outer Comic Rounded Badge -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="#1E1B4B"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#FFD93D" stroke="#1E1B4B" stroke-width="3"/>
+  
+  <!-- Ninja Headband -->
+  <path d="M6 18 Q32 12 58 18 L58 26 Q32 20 6 26 Z" fill="#FF6B6B" stroke="#1E1B4B" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Headband knot ribbon -->
+  <path d="M52 22 L62 26 L56 32 Z" fill="#FF6B6B" stroke="#1E1B4B" stroke-width="2"/>
+  
+  <!-- Playwright Badge / Emblem on Headband -->
+  <circle cx="32" cy="19" r="4.5" fill="#38E4FF" stroke="#1E1B4B" stroke-width="2"/>
+  <polygon points="31,17 35,19 31,21" fill="#1E1B4B"/>
+
+  <!-- Sensei Robot Eyes -->
+  <rect x="16" y="30" width="12" height="13" rx="4" fill="#1E1B4B"/>
+  <rect x="36" y="30" width="12" height="13" rx="4" fill="#1E1B4B"/>
+  <circle cx="21" cy="35" r="2.5" fill="#38E4FF"/>
+  <circle cx="41" cy="35" r="2.5" fill="#38E4FF"/>
+  <circle cx="23" cy="33" r="1" fill="#FFFFFF"/>
+  <circle cx="43" cy="33" r="1" fill="#FFFFFF"/>
+
+  <!-- Happy Smile / Mask -->
+  <path d="M24 47 Q32 54 40 47" stroke="#1E1B4B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  
+  <!-- Rosy Comic Cheeks -->
+  <circle cx="15" cy="45" r="3" fill="#FF6B6B" opacity="0.8"/>
+  <circle cx="49" cy="45" r="3" fill="#FF6B6B" opacity="0.8"/>
+</svg>
