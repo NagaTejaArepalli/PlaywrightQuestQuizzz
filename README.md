@@ -1,6 +1,6 @@
 # 🎭 Playwright Quest: Daily SDET Dojo
 
-> Master Modern Playwright & TypeScript in 14 Days through an Interactive Comic Arcade Experience!
+> Master Modern Playwright & TypeScript across 14 Major Topics through an Interactive Comic Arcade Experience!
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-playwrightquestquizz.web.app-38E4FF?style=for-the-badge&logo=firebase&logoColor=black)](https://playwrightquestquizz.web.app)
 [![Powered by Gemini](https://img.shields.io/badge/AI%20Engine-Google%20Gemini-845EC2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://aistudio.google.com/)
@@ -21,7 +21,7 @@ Complete progressive daily missions, test your real-world Playwright knowledge w
 
 ## ✨ Key Features
 
-### 🥋 1. 14-Day Progressive Curriculum
+### 🥋 1. 14 Major SDET Architectural Topics
 A comprehensive curriculum covering end-to-end browser automation and test architecture:
 1. **Architecture & WebSockets**: Persistent CDP/protocol connection, Browser vs Context vs Page isolation.
 2. **Locators & Strict Mode**: User-facing locators (`getByRole`, `getByLabel`), strict mode traps, locator chaining.
