@@ -141,27 +141,61 @@ async function getSubscribedUsers(auth, db) {
   const unsubscribedEmails = new Set();
   const unsubscribedUids = new Set();
 
-  // 1. Fetch unsubscribed registry from Firestore
+  // 1. Fetch unsubscribed registry from Firestore REST API & Admin SDK
   try {
-    const unsubsSnap = await db.collection('unsubscribes').get();
-    unsubsSnap.forEach(docSnap => {
-      const d = docSnap.data();
-      const docId = docSnap.id.toLowerCase().trim();
+    const restUrl = 'https://firestore.googleapis.com/v1/projects/playwrightquestquizz/databases/(default)/documents/unsubscribes';
+    const response = await fetch(restUrl);
+    if (response.ok) {
+      const result = await response.json();
+      if (Array.isArray(result.documents)) {
+        result.documents.forEach(docItem => {
+          const nameParts = (docItem.name || '').split('/');
+          const docId = (nameParts[nameParts.length - 1] || '').toLowerCase().trim();
+          const fields = docItem.fields || {};
+          const isUnsubscribed = fields.unsubscribed ? fields.unsubscribed.booleanValue : true;
 
-      // Only treat as unsubscribed if d.unsubscribed !== false
-      if (d.unsubscribed !== false) {
-        if (d.email) {
-          const em = d.email.toLowerCase().trim();
-          unsubscribedEmails.add(em);
-          unsubscribedEmails.add(em.replace(/[^a-zA-Z0-9]/g, '_'));
-        }
-        if (d.uid) unsubscribedUids.add(d.uid.trim());
-        unsubscribedEmails.add(docId);
+          if (isUnsubscribed !== false) {
+            if (fields.email && fields.email.stringValue) {
+              const em = fields.email.stringValue.toLowerCase().trim();
+              unsubscribedEmails.add(em);
+              unsubscribedEmails.add(em.replace(/[^a-zA-Z0-9]/g, '_'));
+            }
+            if (fields.uid && fields.uid.stringValue) {
+              unsubscribedUids.add(fields.uid.stringValue.trim());
+            }
+            if (docId) {
+              unsubscribedEmails.add(docId);
+            }
+          }
+        });
       }
-    });
-    console.log(`📋 Found ${unsubscribedEmails.size} recorded unsubscribed identifiers in Firestore.`);
+      console.log(`📋 [Firestore REST] Retrieved ${unsubscribedEmails.size} recorded unsubscribed identifiers.`);
+    }
   } catch (err) {
-    console.warn('⚠️ Note: Could not query unsubscribes collection (proceeding with user profile checks):', err.message);
+    console.warn('⚠️ Firestore REST query notice:', err.message);
+  }
+
+  // Also query Admin SDK if permissions are granted
+  if (db) {
+    try {
+      const unsubsSnap = await db.collection('unsubscribes').get();
+      unsubsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const docId = docSnap.id.toLowerCase().trim();
+        if (d.unsubscribed !== false) {
+          if (d.email) {
+            const em = d.email.toLowerCase().trim();
+            unsubscribedEmails.add(em);
+            unsubscribedEmails.add(em.replace(/[^a-zA-Z0-9]/g, '_'));
+          }
+          if (d.uid) unsubscribedUids.add(d.uid.trim());
+          unsubscribedEmails.add(docId);
+        }
+      });
+      console.log(`📋 [Admin SDK] Total unsubscribed identifiers now: ${unsubscribedEmails.size}`);
+    } catch (err) {
+      console.warn('⚠️ Note: Admin SDK query for unsubscribes skipped (using REST API result):', err.message);
+    }
   }
 
   // 2. List all users from Firebase Auth
@@ -226,14 +260,29 @@ async function getSubscribedUsers(auth, db) {
       continue;
     }
 
-    // Direct check in unsubscribes collection for document with emailSanitized ID
+    // Direct check in unsubscribes collection for document with emailSanitized ID via REST API
     let isDirectlyUnsubscribed = false;
     try {
-      const docRef1 = await db.collection('unsubscribes').doc(emailSanitized).get();
-      if (docRef1.exists && docRef1.data().unsubscribed !== false) {
-        isDirectlyUnsubscribed = true;
+      const singleDocUrl = `https://firestore.googleapis.com/v1/projects/playwrightquestquizz/databases/(default)/documents/unsubscribes/${encodeURIComponent(emailSanitized)}`;
+      const res = await fetch(singleDocUrl);
+      if (res.ok) {
+        const docData = await res.json();
+        const fields = docData.fields || {};
+        if (fields.unsubscribed ? fields.unsubscribed.booleanValue !== false : true) {
+          isDirectlyUnsubscribed = true;
+        }
       }
     } catch (_) {}
+
+    // Also check via Admin SDK if available
+    if (!isDirectlyUnsubscribed && db) {
+      try {
+        const docRef1 = await db.collection('unsubscribes').doc(emailSanitized).get();
+        if (docRef1.exists && docRef1.data().unsubscribed !== false) {
+          isDirectlyUnsubscribed = true;
+        }
+      } catch (_) {}
+    }
 
     if (!isDirectlyUnsubscribed && u.uid) {
       try {
