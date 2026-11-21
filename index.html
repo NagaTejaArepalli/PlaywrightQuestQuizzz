@@ -1675,6 +1675,26 @@
         </p>
       </div>
 
+      <!-- Daily Quest Email Reminders Toggle -->
+      <div class="p-3 bg-[#F8F9FA] rounded-xl border-2 border-[#1E1B4B] space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">📬</span>
+            <div>
+              <span class="text-xs font-extrabold text-[#1E1B4B]">Daily Quest Email Reminder</span>
+              <p class="text-[10px] font-semibold text-[#1E1B4B]/70">Everyday at 9:30 AM IST</p>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input id="settings-email-toggle" type="checkbox" checked class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6BCB77] border border-[#1E1B4B]"></div>
+          </label>
+        </div>
+        <p class="text-[10px] font-semibold text-[#1E1B4B]/60 leading-tight">
+          Receive a daily mission briefing &amp; streak alert from Sensei Script. You can unsubscribe anytime.
+        </p>
+      </div>
+
       <!-- Test Status Box (revealed on test) -->
       <div id="settings-test-status" class="hidden p-3 rounded-xl border-2 border-[#1E1B4B] text-xs font-bold"></div>
 
@@ -1695,6 +1715,29 @@
           <span>🗑️ Clear</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Unsubscribe Confirmation Modal -->
+  <div id="unsubscribe-modal"
+    class="hidden fixed inset-0 z-50 bg-[#1E1B4B]/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="comic-card p-6 max-w-sm w-full text-center space-y-4 animate-pop bg-white">
+      <div class="w-16 h-16 rounded-full bg-[#FFE3E3] border-3 border-[#1E1B4B] flex items-center justify-center text-3xl mx-auto shadow-[3px_3px_0_#1E1B4B]">
+        🔕
+      </div>
+      <div>
+        <h3 class="text-xl font-bold text-[#1E1B4B]">Quest Briefings Paused</h3>
+        <p id="unsubscribe-modal-desc" class="text-xs font-semibold text-[#1E1B4B]/80 mt-1.5 leading-relaxed">
+          You have been removed from the daily 9:30 AM IST Playwright Quest reminder list.
+        </p>
+      </div>
+      <div class="p-3 bg-[#F8F9FA] rounded-xl border border-[#1E1B4B]/30 text-[11px] font-bold text-[#1E1B4B]/70">
+        💡 Changed your mind? You can re-enable daily reminders anytime in <strong>⚙️ Settings</strong>.
+      </div>
+      <button id="btn-close-unsubscribe" type="button"
+        class="comic-btn w-full py-2.5 bg-[#FFD93D] text-[#1E1B4B] font-bold text-sm min-h-[44px]">
+        👍 Understood, Back to App
+      </button>
     </div>
   </div>
 
@@ -2151,7 +2194,8 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
         lastQuizDate: null,
         completedDays: [],
         totalAnswered: 0,
-        totalCorrect: 0
+        totalCorrect: 0,
+        emailNotifications: true
       },
 
       savedQuizzes: [],
@@ -2505,6 +2549,11 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
           statusBadge.textContent = '⚪ No Key Set';
         }
       }
+
+      const emailToggle = document.getElementById('settings-email-toggle');
+      if (emailToggle) {
+        emailToggle.checked = state.profile.emailNotifications !== false;
+      }
     }
 
     function openSettingsModal() {
@@ -2722,6 +2771,7 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
         // Try initializing Firestore if available
         try {
           db = getFirestore(app);
+          checkUnsubscribeQuery();
         } catch (e) {
           console.warn('Firestore initialization deferred:', e);
         }
@@ -2852,10 +2902,12 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
               lastQuizDate: data.lastQuizDate || state.profile.lastQuizDate,
               completedDays: mergedDays,
               totalAnswered: Math.max(state.profile.totalAnswered || 0, data.totalAnswered || 0),
-              totalCorrect: Math.max(state.profile.totalCorrect || 0, data.totalCorrect || 0)
+              totalCorrect: Math.max(state.profile.totalCorrect || 0, data.totalCorrect || 0),
+              emailNotifications: data.emailNotifications !== undefined ? data.emailNotifications : (state.profile.emailNotifications !== false)
             };
             saveLocalUserData();
             updateHeaderStats();
+            updateSettingsUI();
             renderDayPills();
             renderTopicMap();
             renderHomePage();
@@ -2934,13 +2986,89 @@ await row.getByRole('button', { name: 'Delete' }).click();`,
     async function saveProfileToCloud() {
       saveLocalUserData();
       if (!currentUser || !db) return;
-      const payload = { ...state.profile, updatedAt: Date.now() };
+      const isSubscribed = state.profile.emailNotifications !== false;
+      const payload = {
+        ...state.profile,
+        email: currentUser.email || '',
+        displayName: currentUser.displayName || '',
+        emailNotifications: isSubscribed,
+        updatedAt: Date.now()
+      };
       try {
         await setDoc(doc(db, 'users', currentUser.uid, 'profile', 'stats'), payload, { merge: true });
       } catch (err) { }
       try {
         await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'stats'), payload, { merge: true });
       } catch (err) { }
+
+      // Keep unsubscribes registry synchronized
+      if (currentUser.email) {
+        const emailKey = currentUser.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+        if (!isSubscribed) {
+          try {
+            await setDoc(doc(db, 'unsubscribes', emailKey), {
+              email: currentUser.email.toLowerCase(),
+              uid: currentUser.uid,
+              unsubscribedAt: Date.now()
+            }, { merge: true });
+          } catch (_) { }
+        } else {
+          try {
+            await setDoc(doc(db, 'unsubscribes', emailKey), {
+              email: currentUser.email.toLowerCase(),
+              uid: currentUser.uid,
+              unsubscribed: false,
+              resubscribedAt: Date.now()
+            }, { merge: true });
+          } catch (_) { }
+        }
+      }
+    }
+
+    async function checkUnsubscribeQuery() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('action') === 'unsubscribe') {
+          const rawEmail = (params.get('email') || '').trim();
+          const email = rawEmail.toLowerCase();
+          const uid = (params.get('uid') || '').trim();
+
+          const modal = document.getElementById('unsubscribe-modal');
+          const desc = document.getElementById('unsubscribe-modal-desc');
+          if (desc && email) {
+            desc.innerHTML = `<strong>${email}</strong> has been unsubscribed from daily 9:30 AM IST Playwright Quest reminders.`;
+          }
+          if (modal) modal.classList.remove('hidden');
+
+          state.profile.emailNotifications = false;
+          saveLocalUserData();
+          updateSettingsUI();
+
+          if (db) {
+            const emailKey = email ? email.replace(/[^a-zA-Z0-9]/g, '_') : (uid || 'unknown');
+            try {
+              await setDoc(doc(db, 'unsubscribes', emailKey), {
+                email: email || '',
+                uid: uid || '',
+                unsubscribedAt: Date.now()
+              }, { merge: true });
+            } catch (err) {
+              console.warn('Firestore unsubscribe write notice:', err);
+            }
+          }
+
+          if (currentUser) {
+            saveProfileToCloud();
+          }
+
+          try {
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+          } catch (_) { }
+        }
+      } catch (err) {
+        console.warn('Unsubscribe check error:', err);
+      }
     }
 
     async function saveQuizToCloud(quizObj) {
@@ -4494,6 +4622,19 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
       document.getElementById('settings-modal')?.addEventListener('click', (e) => {
         if (e.target.id === 'settings-modal') closeSettingsModal();
       });
+      document.getElementById('settings-email-toggle')?.addEventListener('change', (e) => {
+        state.profile.emailNotifications = !!e.target.checked;
+        saveLocalUserData();
+        if (currentUser) {
+          saveProfileToCloud();
+        }
+        playSound('pop');
+        showToast(e.target.checked ? 'Daily 9:30 AM reminders enabled 📬' : 'Daily reminders paused 🔕', 'info');
+      });
+      document.getElementById('btn-close-unsubscribe')?.addEventListener('click', () => {
+        document.getElementById('unsubscribe-modal')?.classList.add('hidden');
+        playSound('pop');
+      });
       document.getElementById('btn-toggle-key-visibility')?.addEventListener('click', () => {
         const inp = document.getElementById('settings-api-key-input');
         if (inp) {
@@ -4722,7 +4863,10 @@ Mix difficulties across "Core", "Tricky", and "Senior Interview".`;
       // 2. Bind all event listeners cleanly
       bindAllEvents();
 
-      // 3. Initialize Firebase Auth
+      // 3. Check for URL actions (e.g. email unsubscribe link)
+      checkUnsubscribeQuery();
+
+      // 4. Initialize Firebase Auth
       initFirebase();
     }
 

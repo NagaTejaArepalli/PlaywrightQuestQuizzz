@@ -1,0 +1,46 @@
+name: Daily 9:30 AM IST Quest Reminder
+
+on:
+  schedule:
+    # 04:00 UTC corresponds precisely to 09:30 AM IST (Indian Standard Time = UTC + 5:30)
+    - cron: '0 4 * * *'
+  # Allows immediate manual execution from the GitHub Actions web interface
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (preview without sending actual emails)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  dispatch-reminder:
+    name: Send Daily Quest Reminder (9:30 AM IST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci || npm install --production
+
+      - name: 🚀 Run Daily Quest Reminder Dispatcher
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLAYWRIGHTQUESTQUIZZ }}
+          GMAIL_USER: 'webpagestechie@gmail.com'
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          APP_URL: 'https://playwrightquestquizz.web.app'
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            node scripts/send-daily-reminder.js --dry-run
+          else
+            node scripts/send-daily-reminder.js
+          fi

@@ -61,6 +61,15 @@ A comprehensive curriculum covering end-to-end browser automation and test archi
 
 ---
 
+### 📬 5. Automated Daily Quest Reminders (9:30 AM IST)
+- **Everyday at 9:30 AM IST (04:00 UTC)**: Registered users receive an engaging, comic-styled daily mission briefing sent directly from the Firebase project owner (`webpagestechie@gmail.com`).
+- **Hook & Daily Challenge**: Highlights essential automation topics (e.g. *Day 3: Auto-Waiting & Web-First Assertions*), poses a brain-teaser to banish `waitForTimeout`, and includes a direct comic button to enter the Dojo.
+- **One-Click Unsubscribe**: Every email includes an RFC 8058 compliant one-click unsubscribe link. When clicked, it automatically pauses daily notifications in Firestore and displays a friendly comic confirmation modal.
+- **In-App Notification Toggle**: Users can also toggle daily reminder briefings ON/OFF anytime in **⚙️ Settings**.
+- **Scheduled Delivery via GitHub Actions**: `.github/workflows/daily-reminder.yml` runs free on a daily cron schedule and supports instant manual testing via `workflow_dispatch`.
+
+---
+
 ### 🎨 5. Comic Arcade Design & Audio
 - Bold 3px ink borders, cartoon drop shadows, Fredoka + Nunito typography, and cheerful sound effects.
 - 100% responsive layout tailored for mobile devices (iPhone, Samsung Galaxy, Pixel) and desktop browsers with zero text clipping.
@@ -115,6 +124,26 @@ firebase login
 # Deploy Hosting and Security Rules
 firebase deploy
 ```
+
+---
+
+### 4. Setting Up Daily 9:30 AM IST Reminder Emails
+
+The automated daily email dispatcher runs on GitHub Actions every day at **04:00 UTC (9:30 AM IST)**.
+
+To enable live email delivery:
+1. Generate an **App Password** for `webpagestechie@gmail.com`:
+   - Go to [Google Account Security](https://myaccount.google.com/security).
+   - Under *2-Step Verification*, select **App passwords**.
+   - Create a new password named `Playwright Quest Reminders` and copy the 16-character code.
+2. In your GitHub repository:
+   - Navigate to **Settings** > **Secrets and variables** > **Actions**.
+   - Verify `FIREBASE_SERVICE_ACCOUNT_PLAYWRIGHTQUESTQUIZZ` is present (automatically added by Firebase).
+   - Add a New Repository Secret:
+     - Name: `GMAIL_APP_PASSWORD`
+     - Value: `<your-16-character-app-password>`
+3. **Test Delivery**:
+   - Go to the **Actions** tab in GitHub > select **Daily 9:30 AM IST Quest Reminder** > click **Run workflow** (supports dry-run testing or instant live delivery).
 
 ---
 
