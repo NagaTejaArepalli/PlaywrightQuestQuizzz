@@ -3,7 +3,7 @@ name: Daily 9:30 AM IST Quest Reminder
 on:
   schedule:
     # 04:00 UTC corresponds precisely to 09:30 AM IST (Indian Standard Time = UTC + 5:30)
-    - cron: '0 4 * * *'
+    - cron: "30 9 * * *"
   # Allows immediate manual execution from the GitHub Actions web interface
   workflow_dispatch:
     inputs:
